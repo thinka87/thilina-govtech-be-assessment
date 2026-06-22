@@ -336,6 +336,24 @@
                                     "key": "search",
                                     "value": "Kamal",
                                     "description": "Optional keyword search across name, NIC, email, mobile"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "0",
+                                    "description": "Zero-based page index (default: 0)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "size",
+                                    "value": "10",
+                                    "description": "Number of records per page (default: 10)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "name,asc",
+                                    "description": "Sort field and direction, e.g. name,asc or createdAt,desc",
+                                    "disabled": true
                                 }
                             ]
                         },
@@ -576,7 +594,27 @@
                         "url": {
                             "raw": "{{baseUrl}}/api/v1/citizens/{{citizenReference}}/service-requests",
                             "host": ["{{baseUrl}}"],
-                            "path": ["api", "v1", "citizens", "{{citizenReference}}", "service-requests"]
+                            "path": ["api", "v1", "citizens", "{{citizenReference}}", "service-requests"],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "0",
+                                    "description": "Zero-based page index (default: 0)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "size",
+                                    "value": "10",
+                                    "description": "Number of records per page (default: 10)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "createdAt,desc",
+                                    "description": "Sort field and direction, e.g. createdAt,desc or status,asc",
+                                    "disabled": true
+                                }
+                            ]
                         },
                         "description": "Returns the authenticated citizen's own paginated service requests. Requires CITIZEN role. The citizenReference must match the authenticated user. Response is PageResponse (not wrapped)."
                     },
@@ -627,6 +665,24 @@
                                     "key": "serviceType",
                                     "value": "",
                                     "description": "Optional: partial match on service type",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "0",
+                                    "description": "Zero-based page index (default: 0)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "size",
+                                    "value": "10",
+                                    "description": "Number of records per page (default: 10)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "createdAt,desc",
+                                    "description": "Sort field and direction, e.g. createdAt,desc or status,asc",
                                     "disabled": true
                                 }
                             ]
@@ -1393,7 +1449,27 @@
                         "url": {
                             "raw": "{{baseUrl}}/api/v1/citizens/{{citizenReference}}/notifications",
                             "host": ["{{baseUrl}}"],
-                            "path": ["api", "v1", "citizens", "{{citizenReference}}", "notifications"]
+                            "path": ["api", "v1", "citizens", "{{citizenReference}}", "notifications"],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "0",
+                                    "description": "Zero-based page index (default: 0)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "size",
+                                    "value": "10",
+                                    "description": "Number of records per page (default: 10)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "createdAt,desc",
+                                    "description": "Sort field and direction, e.g. createdAt,desc or isRead,asc",
+                                    "disabled": true
+                                }
+                            ]
                         },
                         "description": "Returns the authenticated citizen's own paginated notifications, newest-first. Requires CITIZEN role. The citizenReference must match the authenticated user. Notifications are created automatically on status changes."
                     },
