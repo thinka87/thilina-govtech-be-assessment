@@ -187,7 +187,7 @@ The following accounts are seeded automatically on startup:
 |---------------|-----------------|-------------|---------------------------------------------------------------|
 | ADMIN         | admin@gov.lk    | Admin@123   | Full access — manage citizens, cancel requests                |
 | SERVICE_AGENT | agent@gov.lk    | Agent@123   | Review, approve, and reject service requests                  |
-| CITIZEN       | citizen@gov.lk  | Citizen@123 | Has a linked citizen profile — can submit and track requests  |
+| CITIZEN       | citizen@gov.lk  | Citizen@123 | Has a linked citizen profile — can submit and track requests. **Note:** If the Postman collection is run initially, the password is changed to `Citizen@12345` |
 
 **Password complexity rules** (enforced on password change and citizen creation):
 - Minimum 8 characters
