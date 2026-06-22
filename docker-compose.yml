@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: govtech-postgres
+    environment:
+      POSTGRES_DB: govtech_db
+      POSTGRES_USER: govtech
+      POSTGRES_PASSWORD: govtech123
+      TZ: Asia/Colombo
+      PGTZ: Asia/Colombo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U govtech -d govtech_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - govtech-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: govtech-backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/govtech_db
+      DB_USERNAME: govtech
+      DB_PASSWORD: govtech123
+      JWT_SECRET: change-this-secret-key-for-local-development-only
+      JWT_EXPIRATION_MS: 86400000
+      TZ: Asia/Colombo
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Colombo
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - govtech-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: govtech-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - govtech-network
+
+volumes:
+  postgres_data:
+
+networks:
+  govtech-network:
+    driver: bridge

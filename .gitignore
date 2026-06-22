@@ -1,0 +1,34 @@
+# ===== Maven =====
+target/
+*.class
+*.jar
+*.war
+.mvn/
+
+# ===== IDE =====
+.idea/
+*.iml
+.eclipse/
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+
+# ===== Spring Boot =====
+*.log
+application-local.yml
+application-secrets.yml
+
+# ===== Node / Frontend =====
+node_modules/
+dist/
+.env.local
+.env.*.local
+
+# ===== Docker =====
+.docker/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db

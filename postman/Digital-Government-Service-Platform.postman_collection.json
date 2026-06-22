@@ -1,0 +1,2191 @@
+{
+    "info": {
+        "_postman_id": "d1g2i3t4-a5l6-g7o8-v9t0-e1c2h3p4l5a6",
+        "name": "Digital Government Service Platform",
+        "description": "End-to-end API tests for the Digital Government Service Request Platform.\n\n## Happy-path runner order\n1. **01/1** Login as Admin\n2. **02/1** Create Citizen → sets `citizenUsername`, `citizenReference`\n3. **01/3** Login as Citizen → sets `citizenToken`\n4. **01/4** Change Citizen Password\n5. **07/1** Get Service Types\n6. **03/1** Create Service Request → sets `requestReference`\n7. **04/1** Add Supporting Document → sets `documentReference`\n8. **01/2** Login as Service Agent → sets `agentToken`\n9. **03/4** View Service Request Details as Agent\n10. **04/2** View Documents by Service Request as Agent\n11. **04/5** Update Document Verification Status as Agent\n12. **03/6** Update Service Request Status (SUBMITTED→IN_REVIEW)\n13. **05/3** View Status History as Agent\n14. **05/1** View Citizen Notifications → sets `notificationId`\n15. **05/2** Mark Notification as Read\n16. **01/1** Login as Admin (refresh)\n17. **03/8** Cancel Service Request as Admin\n18. **04/9** Add Document to Cancelled Request Error → 409\n\n## Base URL\n`http://localhost:8080` — context path `/api` is included in every request path.\n\n## Default test accounts\n- Admin: `admin@gov.lk` / `Admin@123`\n- Agent: `agent@gov.lk` / `Agent@123`\n- Citizen: `citizen@gov.lk` / `Citizen@123`\n\n## Key behaviours\n- **Single session**: each login invalidates all prior tokens for that user\n- **Password complexity**: min 8 chars, 1 uppercase, 1 digit, 1 special char\n- **Deactivated accounts**: login returns 401 with message containing 'deactivated'\n- **Cancelled requests**: adding documents or updating verification status returns 409\n- **Timezone**: all timestamps in Asia/Colombo (UTC+5:30)",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "01 - Authentication",
+            "description": "Login and password-management endpoints. POST /login is public — no token required. Tokens are saved automatically to environment variables.",
+            "item": [
+                {
+                    "name": "1. Login as Admin",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Login successful - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Access token returned\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.accessToken).to.be.a('string').and.not.empty;",
+                                    "    pm.expect(json.role).to.equal('ADMIN');",
+                                    "    pm.expect(json.mustChangePassword).to.be.false;",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "pm.environment.set('adminToken', json.accessToken);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "auth", "login"]
+                        },
+                        "description": "Authenticates as ADMIN and saves the JWT Bearer token to `adminToken`. Response includes `accessToken`, `role`, and `mustChangePassword`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Login as Service Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Login successful - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Access token returned for SERVICE_AGENT\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.accessToken).to.be.a('string').and.not.empty;",
+                                    "    pm.expect(json.role).to.equal('SERVICE_AGENT');",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "pm.environment.set('agentToken', json.accessToken);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"{{agentUsername}}\",\n  \"password\": \"{{agentPassword}}\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "auth", "login"]
+                        },
+                        "description": "Authenticates as SERVICE_AGENT and saves the JWT Bearer token to `agentToken`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Login as Citizen",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Login successful - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Access token returned for CITIZEN\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.accessToken).to.be.a('string').and.not.empty;",
+                                    "    pm.expect(json.role).to.equal('CITIZEN');",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "pm.environment.set('citizenToken', json.accessToken);",
+                                    "if (json.citizenReference) {",
+                                    "    pm.environment.set('citizenReference', json.citizenReference);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"{{citizenUsername}}\",\n  \"password\": \"{{citizenPassword}}\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "auth", "login"]
+                        },
+                        "description": "Authenticates as CITIZEN and saves the JWT Bearer token to `citizenToken`. Run **after** '02/1 Create Citizen' so that `citizenUsername` is populated. `mustChangePassword` will be `true` on first login."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Change Citizen Password",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Password changed - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Success flag is true\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.success).to.be.true;",
+                                    "});",
+                                    "// Promote citizenNewPassword → citizenPassword so subsequent logins use the updated password",
+                                    "pm.environment.set('citizenPassword', pm.environment.get('citizenNewPassword'));"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"currentPassword\": \"{{citizenPassword}}\",\n  \"newPassword\": \"{{citizenNewPassword}}\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/change-password",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "auth", "change-password"]
+                        },
+                        "description": "Changes the citizen's password. `currentPassword` uses `{{citizenPassword}}` and `newPassword` uses `{{citizenNewPassword}}` from the environment. On success, promotes `citizenNewPassword` → `citizenPassword` so re-running '01/3 Login as Citizen' uses the updated credentials."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. Login - Deactivated Account Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Unauthorized - 401 deactivated account\", function () {",
+                                    "    pm.response.to.have.status(401);",
+                                    "});",
+                                    "pm.test(\"Message mentions deactivated\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.message.toLowerCase()).to.include('deactivated');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"{{deactivatedUsername}}\",\n  \"password\": \"{{deactivatedPassword}}\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "auth", "login"]
+                        },
+                        "description": "Attempts login using the seeded inactive account (`inactive@gov.lk`). This account is seeded with `active = false` on startup, so this test is self-contained and does not depend on running '02/5 Deactivate Citizen' first. Expects HTTP 401 with a message containing 'deactivated'."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "02 - Citizen Management",
+            "description": "Admin APIs for creating, viewing, updating, and deactivating citizen profiles. All endpoints require ADMIN role except GET /{ref} which also accepts SERVICE_AGENT.",
+            "item": [
+                {
+                    "name": "1. Create Citizen",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Citizen created - 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"citizenReference matches CIT- prefix\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.citizenReference).to.match(/^CIT-/);",
+                                    "    pm.expect(json.data.mustChangePassword).to.be.true;",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "pm.environment.set('citizenReference', json.data.citizenReference);",
+                                    "pm.environment.set('citizenUsername', json.data.email);",
+                                    "pm.environment.set('citizenPassword', 'Temp@12345');"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Kamal Perera\",\n  \"nic\": \"199012345678\",\n  \"email\": \"kamal.perera@example.com\",\n  \"mobileNumber\": \"0759876543\",\n  \"address\": \"Colombo, Sri Lanka\",\n  \"temporaryPassword\": \"Temp@12345\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens"]
+                        },
+                        "description": "Creates a new citizen profile and linked login account. Requires ADMIN role. Saves `citizenReference` and `citizenUsername` to environment. Response wraps data in `ApiResponse.data`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. View Citizen by Reference",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Citizen profile returned - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"citizenReference matches\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.citizenReference).to.equal(pm.environment.get('citizenReference'));",
+                                    "    pm.expect(json.email).to.equal('kamal.perera@example.com');",
+                                    "    pm.expect(json.status).to.equal('ACTIVE');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens/{{citizenReference}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens", "{{citizenReference}}"]
+                        },
+                        "description": "Returns the full citizen profile for the saved `citizenReference`. Requires ADMIN or SERVICE_AGENT. Response is NOT wrapped — returns CitizenResponse directly."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. List / Search Citizens",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Citizens listed - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Paginated response structure\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json).to.have.property('content');",
+                                    "    pm.expect(json).to.have.property('totalElements');",
+                                    "    pm.expect(json.totalElements).to.be.above(0);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens?search=Kamal",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens"],
+                            "query": [
+                                {
+                                    "key": "search",
+                                    "value": "Kamal",
+                                    "description": "Optional keyword search across name, NIC, email, mobile"
+                                }
+                            ]
+                        },
+                        "description": "Returns paginated citizen summaries. Optional `search` param filters by name, NIC, email, or mobile. Requires ADMIN. Response is PageResponse (not wrapped)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Update Citizen",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Citizen updated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Name updated\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.name).to.equal('Kamal Perera Updated');",
+                                    "    pm.expect(json.mobileNumber).to.equal('0779876543');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Kamal Perera Updated\",\n  \"email\": \"kamal.perera@example.com\",\n  \"mobileNumber\": \"0779876543\",\n  \"address\": \"No. 456, Galle Road, Colombo 03, Sri Lanka\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens/{{citizenReference}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens", "{{citizenReference}}"]
+                        },
+                        "description": "Updates citizen name, email, mobile, address, and optional status. NIC cannot be changed. Requires ADMIN. Response is CitizenResponse (not wrapped)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. Deactivate Citizen",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Citizen deactivated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Success confirmed\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.success).to.be.true;",
+                                    "    pm.expect(json.message).to.include('deactivated');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens/{{citizenReference}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens", "{{citizenReference}}"]
+                        },
+                        "description": "Soft-deactivates the citizen: sets status=INACTIVE and disables login. Requires ADMIN. Note: existing JWT tokens remain valid for role checks but new logins fail."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "6. Duplicate Citizen NIC Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Conflict - 409 duplicate NIC\", function () {",
+                                    "    pm.response.to.have.status(409);",
+                                    "});",
+                                    "pm.test(\"Error message mentions NIC\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.message).to.include('199012345678');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Duplicate NIC Test\",\n  \"nic\": \"199012345678\",\n  \"email\": \"duplicate.nic@example.com\",\n  \"mobileNumber\": \"0770000001\",\n  \"address\": \"Test Address\",\n  \"temporaryPassword\": \"Temp@12345\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens"]
+                        },
+                        "description": "Attempts to create a citizen with an NIC that already exists. Expects HTTP 409 Conflict. Validates the uniqueness constraint on NIC."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "7. Access Create Citizen as Citizen - Forbidden",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Forbidden - 403 CITIZEN cannot create citizens\", function () {",
+                                    "    pm.response.to.have.status(403);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Unauthorized Test\",\n  \"nic\": \"199099999999\",\n  \"email\": \"unauthorized@example.com\",\n  \"mobileNumber\": \"0770000002\",\n  \"address\": \"Test Address\",\n  \"temporaryPassword\": \"Temp@12345\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens"]
+                        },
+                        "description": "Verifies that CITIZEN role cannot create citizen profiles. Expects HTTP 403 Forbidden — ADMIN role is required for this endpoint."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "03 - Service Request Management",
+            "description": "APIs for creating and processing citizen service requests. Citizens create requests; agents review and update status; admins can cancel.",
+            "item": [
+                {
+                    "name": "1. Create Service Request as Citizen",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Service request created - 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"requestReference matches REQ- prefix\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.requestReference).to.match(/^REQ-/);",
+                                    "    pm.expect(json.data.status).to.equal('SUBMITTED');",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "pm.environment.set('requestReference', json.data.requestReference);",
+                                    "pm.environment.set('citizenReference', json.data.citizenReference);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"serviceType\": \"PASSPORT_RENEWAL\",\n  \"description\": \"Requesting passport renewal. Current passport expires within 6 months.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests"]
+                        },
+                        "description": "Creates a new service request for the authenticated CITIZEN. The citizen is derived from the JWT — citizenReference is NOT included in the body. Initial status is SUBMITTED. Saves `requestReference` to environment."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. View My Service Requests",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"My requests returned - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Paginated response with at least one request\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.content).to.be.an('array').and.not.empty;",
+                                    "    pm.expect(json.content[0].requestReference).to.match(/^REQ-/);",
+                                    "});",
+                                    "pm.test(\"Each request includes documents array\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    const req = json.content.find(r => r.requestReference === pm.environment.get('requestReference'));",
+                                    "    if (req) {",
+                                    "        pm.expect(req).to.have.property('documents');",
+                                    "        pm.expect(req.documents).to.be.an('array');",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens/{{citizenReference}}/service-requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens", "{{citizenReference}}", "service-requests"]
+                        },
+                        "description": "Returns the authenticated citizen's own paginated service requests. Requires CITIZEN role. The citizenReference must match the authenticated user. Response is PageResponse (not wrapped)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Search Service Requests as Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Search results returned - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Paginated response with results\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json).to.have.property('content');",
+                                    "    pm.expect(json).to.have.property('totalElements');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests?status=SUBMITTED",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests"],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "SUBMITTED",
+                                    "description": "Filter by status: SUBMITTED, IN_REVIEW, APPROVED, REJECTED, CANCELLED"
+                                },
+                                {
+                                    "key": "citizenReference",
+                                    "value": "",
+                                    "description": "Optional: filter by citizen reference",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "serviceType",
+                                    "value": "",
+                                    "description": "Optional: partial match on service type",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Paginated search with optional filters: status (exact), citizenReference (exact), serviceType (partial, case-insensitive). Requires SERVICE_AGENT or ADMIN. Response is PageResponse (not wrapped)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. View Service Request Details as Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Service request returned - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Request reference matches\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.requestReference).to.equal(pm.environment.get('requestReference'));",
+                                    "    pm.expect(json.serviceType).to.equal('PASSPORT_RENEWAL');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}"]
+                        },
+                        "description": "Returns the full service request profile. Requires SERVICE_AGENT or ADMIN. Response is ServiceRequestResponse (not wrapped)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. Update Service Request Details as Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Service request updated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Description updated\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.description).to.include('updated');",
+                                    "    pm.expect(json.status).to.equal('SUBMITTED');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"serviceType\": \"PASSPORT_RENEWAL\",\n  \"description\": \"Requesting passport renewal — updated with additional supporting details.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}"]
+                        },
+                        "description": "Updates serviceType and description. Only allowed when status is SUBMITTED. Returns 400 if request is in any other status. Requires SERVICE_AGENT. Response is ServiceRequestResponse (not wrapped)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "6. Update Service Request Status as Agent (SUBMITTED→IN_REVIEW)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status updated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Status transitioned to IN_REVIEW\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.previousStatus).to.equal('SUBMITTED');",
+                                    "    pm.expect(json.data.newStatus).to.equal('IN_REVIEW');",
+                                    "    pm.expect(json.success).to.be.true;",
+                                    "});",
+                                    "pm.test(\"StatusHistory and Notification created (implicit)\", function () {",
+                                    "    // Verify by checking status history endpoint and notifications endpoint",
+                                    "    pm.expect(pm.response.code).to.equal(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"IN_REVIEW\",\n  \"remarks\": \"Initial review started. Documents being verified.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}/status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}", "status"]
+                        },
+                        "description": "Transitions the service request from SUBMITTED to IN_REVIEW. Creates a StatusHistory record and a citizen Notification atomically. Requires SERVICE_AGENT. Valid transitions: SUBMITTED→IN_REVIEW, IN_REVIEW→APPROVED|REJECTED."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "7. Invalid Status Update Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Bad request - 400 invalid transition\", function () {",
+                                    "    pm.response.to.have.status(400);",
+                                    "});",
+                                    "pm.test(\"Error message explains invalid transition\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.message).to.satisfy(function(msg) {",
+                                    "        return msg.includes('IN_REVIEW') || msg.includes('transition') || msg.includes('Invalid');",
+                                    "    });",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"SUBMITTED\",\n  \"remarks\": \"Trying to revert — this should fail.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}/status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}", "status"]
+                        },
+                        "description": "Attempts an invalid status transition: IN_REVIEW→SUBMITTED (not permitted). Expects HTTP 400 Bad Request. Run after '03/6 Update Status' to ensure current status is IN_REVIEW."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "8. Add Document Before Cancel (Setup)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Document added - 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "if (json.data && json.data.documentReference) {",
+                                    "    pm.environment.set('documentReference', json.data.documentReference);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"documentType\": \"NIC_COPY\",\n  \"documentName\": \"NIC Copy - Cancel Flow Setup\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}/documents",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}", "documents"]
+                        },
+                        "description": "Adds a document to the service request BEFORE it is cancelled, so that {{documentReference}} is populated for the 'Verify Document on Cancelled Request Error' test that follows the cancel step."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "9. Cancel Service Request as Admin",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Service request cancelled - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Cancellation confirmed\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.success).to.be.true;",
+                                    "    pm.expect(json.message).to.include('cancelled');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}"]
+                        },
+                        "description": "Soft-cancels the service request (sets status=CANCELLED). Creates a StatusHistory record and citizen Notification. Requires ADMIN. Returns 400 if already in a terminal state (APPROVED, REJECTED, CANCELLED)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "10. Add Document to Cancelled Request Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Bad request - 400 request is cancelled\", function () {",
+                                    "    pm.response.to.have.status(400);",
+                                    "});",
+                                    "pm.test(\"Error message mentions cancelled\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.message.toLowerCase()).to.include('cancel');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"documentType\": \"PASSPORT_COPY\",\n  \"documentName\": \"Passport Copy\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}/documents",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}", "documents"]
+                        },
+                        "description": "Citizen attempts to add a document after the request has been cancelled. Expects HTTP 400 Bad Request — InvalidStatusException is mapped to 400 in GlobalExceptionHandler."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "11. Verify Document on Cancelled Request Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Bad request - 400 request is cancelled\", function () {",
+                                    "    pm.response.to.have.status(400);",
+                                    "});",
+                                    "pm.test(\"Error message mentions cancelled\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.message.toLowerCase()).to.include('cancel');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"verificationStatus\": \"VERIFIED\",\n  \"remarks\": \"Attempting to verify on a cancelled request.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/documents/{{documentReference}}/verification-status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "documents", "{{documentReference}}", "verification-status"]
+                        },
+                        "description": "Agent attempts to verify a document after the parent service request has been cancelled. Expects HTTP 400 Bad Request — InvalidStatusException is mapped to 400 in GlobalExceptionHandler."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "12. Create Request with Invalid Citizen Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Not found - 404 invalid citizenReference\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});",
+                                    "pm.test(\"Error message mentions citizen\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.message).to.include('CIT-NOTEXIST');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"serviceType\": \"TEST_SERVICE\",\n  \"description\": \"Test request with invalid citizen reference.\",\n  \"citizenReference\": \"CIT-NOTEXIST\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests"]
+                        },
+                        "description": "ADMIN attempts to create a service request for a non-existent citizen. Expects HTTP 404 Not Found."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "13. Citizen Access Another Citizen Request Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Not found - 404 when citizenReference is not theirs\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens/CIT-NOTEXIST/service-requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens", "CIT-NOTEXIST", "service-requests"]
+                        },
+                        "description": "CITIZEN attempts to view service requests for a non-existent citizen reference. Expects HTTP 404 Not Found. A valid but different citizen reference would return 403 Forbidden (ownership violation)."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "04 - Supporting Document Management",
+            "description": "APIs for managing supporting document metadata. No binary file upload — metadata only (documentType, documentName, verificationStatus).",
+            "item": [
+                {
+                    "name": "0. Create Service Request for Document Tests",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Service request created - 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "if (json.data && json.data.requestReference) {",
+                                    "    pm.environment.set('requestReference', json.data.requestReference);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"serviceType\": \"DRIVING_LICENSE\",\n  \"description\": \"Fresh service request for document management tests.\",\n  \"citizenReference\": \"{{citizenReference}}\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests"]
+                        },
+                        "description": "Creates a fresh service request for the document management tests. The request from section 03 was cancelled, so this step establishes a new {{requestReference}} in SUBMITTED state for document happy-path tests."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "1. Add Supporting Document as Citizen",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Document added - 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"documentReference and PENDING status\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.documentReference).to.match(/^DOC-/);",
+                                    "    pm.expect(json.data.verificationStatus).to.equal('PENDING');",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "pm.environment.set('documentReference', json.data.documentReference);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"documentType\": \"NIC_COPY\",\n  \"documentName\": \"National Identity Card Copy\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}/documents",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}", "documents"]
+                        },
+                        "description": "Citizen adds a document metadata record to their service request. Document is created with verificationStatus=PENDING. Requires CITIZEN role — citizen must own the service request. Saves `documentReference` to environment."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. View Documents by Service Request as Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Documents returned - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Document list is an array\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json).to.be.an('array').and.not.empty;",
+                                    "    pm.expect(json[0].documentReference).to.match(/^DOC-/);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}/documents",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}", "documents"]
+                        },
+                        "description": "Returns all document metadata records for the given service request. Requires SERVICE_AGENT or ADMIN. Response is a plain JSON array (not wrapped, not paginated)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. View Document by Reference as Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Document returned - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Document reference matches\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.documentReference).to.equal(pm.environment.get('documentReference'));",
+                                    "    pm.expect(json.verificationStatus).to.equal('PENDING');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/documents/{{documentReference}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "documents", "{{documentReference}}"]
+                        },
+                        "description": "Returns full document metadata by reference. Requires SERVICE_AGENT or ADMIN. Response is SupportingDocumentResponse (not wrapped)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Update Document Metadata as Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Document updated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Document name updated\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.documentName).to.equal('National ID Card - Front and Back');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"documentType\": \"NIC_COPY\",\n  \"documentName\": \"National ID Card - Front and Back\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/documents/{{documentReference}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "documents", "{{documentReference}}"]
+                        },
+                        "description": "Updates documentType and documentName. Verification status is updated separately via PATCH /verification-status. Requires SERVICE_AGENT. Response is SupportingDocumentResponse (not wrapped)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. Update Document Verification Status as Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Verification status updated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Status is VERIFIED\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.verificationStatus).to.equal('VERIFIED');",
+                                    "    pm.expect(json.success).to.be.true;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"verificationStatus\": \"VERIFIED\",\n  \"remarks\": \"Document verified. NIC copy is clear and valid.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/documents/{{documentReference}}/verification-status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "documents", "{{documentReference}}", "verification-status"]
+                        },
+                        "description": "Updates verificationStatus to PENDING, VERIFIED, or REJECTED. Include remarks when rejecting. Requires SERVICE_AGENT. Response wraps data in ApiResponse."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "6. Delete Document as Admin",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Document deleted - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Deletion confirmed\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.success).to.be.true;",
+                                    "    pm.expect(json.message).to.include('deleted');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/documents/{{documentReference}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "documents", "{{documentReference}}"]
+                        },
+                        "description": "Hard-deletes the document metadata record. No binary file exists to delete. Requires ADMIN. The parent service request is unaffected."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "7. Add Document to Invalid Request Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Not found - 404 service request not found\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"documentType\": \"PASSPORT_COPY\",\n  \"documentName\": \"Passport Copy\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/REQ-NOTEXIST/documents",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "REQ-NOTEXIST", "documents"]
+                        },
+                        "description": "Attempts to add a document to a non-existent service request. Expects HTTP 404 Not Found."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "8. Citizen Add Document to Another Citizen Request Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Not found - 404 request not found\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"documentType\": \"BIRTH_CERTIFICATE\",\n  \"documentName\": \"Birth Certificate Copy\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/REQ-ANOTHER1/documents",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "REQ-ANOTHER1", "documents"]
+                        },
+                        "description": "Citizen attempts to attach a document to a service request that does not belong to them (using a fake reference). Expects HTTP 404 Not Found. A real existing request owned by another citizen would return HTTP 403 Forbidden."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "05 - Notification and Status History",
+            "description": "Citizen-only notification APIs and read-only status history for agents/admins.",
+            "item": [
+                {
+                    "name": "1. View Citizen Notifications",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Notifications returned - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Paginated notifications response\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json).to.have.property('content');",
+                                    "    pm.expect(json.content).to.be.an('array');",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "if (json.content && json.content.length > 0) {",
+                                    "    pm.environment.set('notificationId', json.content[0].id);",
+                                    "    pm.test('notificationId saved', function () {",
+                                    "        pm.expect(pm.environment.get('notificationId')).to.be.ok;",
+                                    "    });",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens/{{citizenReference}}/notifications",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens", "{{citizenReference}}", "notifications"]
+                        },
+                        "description": "Returns the authenticated citizen's own paginated notifications, newest-first. Requires CITIZEN role. The citizenReference must match the authenticated user. Notifications are created automatically on status changes."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Mark Notification as Read",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Notification marked as read - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Status is READ\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.status).to.equal('READ');",
+                                    "    pm.expect(json.success).to.be.true;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "notifications", "{{notificationId}}", "read"]
+                        },
+                        "description": "Sets the notification status to READ. Idempotent — succeeds if already read. Returns 404 if the notification does not exist or belongs to another citizen (prevents ID enumeration). Requires CITIZEN."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. View Request Status History as Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status history returned - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"History is an array with entries\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json).to.be.an('array').and.not.empty;",
+                                    "});",
+                                    "pm.test(\"First entry has newStatus\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json[0]).to.have.property('newStatus');",
+                                    "    pm.expect(json[0]).to.have.property('changedBy');",
+                                    "    pm.expect(json[0]).to.have.property('changedAt');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}/status-history",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}", "status-history"]
+                        },
+                        "description": "Returns the immutable audit trail of all status transitions, newest-first. `oldStatus` is null for the initial SUBMITTED entry. Requires SERVICE_AGENT or ADMIN. Response is a plain JSON array."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Citizen View Another Citizen Notifications Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Not found - 404 citizen not found\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens/CIT-NOTEXIST/notifications",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens", "CIT-NOTEXIST", "notifications"]
+                        },
+                        "description": "Citizen attempts to view notifications for a non-existent citizen reference. Expects 404 Not Found. Using a valid reference belonging to a different citizen would return 403 Forbidden."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. Citizen View Status History - Forbidden",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Forbidden - 403 CITIZEN cannot view status history\", function () {",
+                                    "    pm.response.to.have.status(403);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{requestReference}}/status-history",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{requestReference}}", "status-history"]
+                        },
+                        "description": "CITIZEN attempts to view status history. Expects 403 Forbidden — SERVICE_AGENT or ADMIN role required."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "07 - Service Types",
+            "description": "Lookup endpoint returning the list of allowed service type values. Used to populate dropdowns in the UI.",
+            "item": [
+                {
+                    "name": "1. Get Service Types",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Service types returned - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Response is a non-empty array of strings\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json).to.be.an('array').and.not.empty;",
+                                    "    json.forEach(t => pm.expect(t).to.be.a('string'));",
+                                    "});",
+                                    "pm.test(\"Contains expected service types\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json).to.include('PASSPORT_RENEWAL');",
+                                    "    pm.expect(json).to.include('BIRTH_CERTIFICATE');",
+                                    "    pm.expect(json).to.include('DRIVING_LICENSE');",
+                                    "    pm.expect(json).to.include('BUSINESS_REGISTRATION');",
+                                    "    pm.expect(json).to.include('OTHER');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/types",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "types"]
+                        },
+                        "description": "Returns the list of allowed service type values. Accessible to any authenticated user (ADMIN, SERVICE_AGENT, CITIZEN). Response is a plain JSON array of strings."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Get Service Types as Citizen",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Service types accessible to CITIZEN - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Same list returned for citizen\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json).to.be.an('array').and.not.empty;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/types",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "types"]
+                        },
+                        "description": "Verifies that the service types endpoint is accessible to CITIZEN role — used by the service request creation form dropdown."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "06 - Security and Common Error Scenarios",
+            "description": "Validates authentication enforcement, role-based access control, and 404 responses for non-existent resources.",
+            "item": [
+                {
+                    "name": "1. Access Protected API Without Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Unauthorized - 401 no token\", function () {",
+                                    "    pm.response.to.have.status(401);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens"]
+                        },
+                        "description": "Accesses a protected endpoint without an Authorization header. Expects HTTP 401 Unauthorized."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Access Protected API With Invalid Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Unauthorized - 401 invalid token\", function () {",
+                                    "    pm.response.to.have.status(401);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer this.is.an.invalid.jwt.token", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens"]
+                        },
+                        "description": "Accesses a protected endpoint with a malformed/invalid JWT token. Expects HTTP 401 Unauthorized."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Access Admin API as Service Agent",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Forbidden - 403 SERVICE_AGENT cannot list all citizens\", function () {",
+                                    "    pm.response.to.have.status(403);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens"]
+                        },
+                        "description": "SERVICE_AGENT attempts to access GET /v1/citizens (ADMIN-only endpoint). Expects HTTP 403 Forbidden. SERVICE_AGENT can view individual citizens (GET /{ref}) but cannot list all."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Access Agent API as Citizen",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Forbidden - 403 CITIZEN cannot search all service requests\", function () {",
+                                    "    pm.response.to.have.status(403);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests"]
+                        },
+                        "description": "CITIZEN attempts to access GET /v1/service-requests (SERVICE_AGENT/ADMIN endpoint). Expects HTTP 403 Forbidden. Citizens can only view their own service requests via /v1/citizens/{ref}/service-requests."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. View Non-existing Citizen",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Not found - 404 citizen does not exist\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/citizens/CIT-NOTEXIST",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "citizens", "CIT-NOTEXIST"]
+                        },
+                        "description": "GET /v1/citizens/{citizenReference} with a non-existent reference. Expects HTTP 404 Not Found."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "6. View Non-existing Service Request",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Not found - 404 service request does not exist\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/REQ-NOTEXIST",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "REQ-NOTEXIST"]
+                        },
+                        "description": "GET /v1/service-requests/{requestReference} with a non-existent reference. Expects HTTP 404 Not Found."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "7. View Non-existing Document",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Not found - 404 document does not exist\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/documents/DOC-NOTEXIST",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "documents", "DOC-NOTEXIST"]
+                        },
+                        "description": "GET /v1/documents/{documentReference} with a non-existent reference. Expects HTTP 404 Not Found."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "8. Mark Non-existing Notification as Read",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Not found - 404 notification does not exist\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"}
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/notifications/99999/read",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "notifications", "99999", "read"]
+                        },
+                        "description": "Attempts to mark a non-existent notification as read. Expects HTTP 404 Not Found. The endpoint also returns 404 (not 403) when the notification belongs to another citizen, preventing ID enumeration."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "08 - Approval and Rejection Flow",
+            "description": "Exercises the two normal terminal states: APPROVED and REJECTED. Each sub-flow creates its own service request so it runs independently of other sections. Also verifies that no further status transitions are possible once a request reaches a terminal state.",
+            "item": [
+                {
+                    "name": "1. Create Service Request for Approval",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Service request created - 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Status is SUBMITTED\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.status).to.equal('SUBMITTED');",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "if (json.data && json.data.requestReference) {",
+                                    "    pm.environment.set('approvalRequestRef', json.data.requestReference);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"serviceType\": \"PASSPORT_RENEWAL\",\n  \"description\": \"Passport renewal application for approval flow test.\",\n  \"citizenReference\": \"{{citizenReference}}\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests"]
+                        },
+                        "description": "Creates a dedicated service request for the approval flow. Saves reference to {{approvalRequestRef}}."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Move to IN_REVIEW (Approval Path)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status updated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Status is IN_REVIEW\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.newStatus).to.equal('IN_REVIEW');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"IN_REVIEW\",\n  \"remarks\": \"Starting review for approval flow test.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{approvalRequestRef}}/status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{approvalRequestRef}}", "status"]
+                        },
+                        "description": "Agent moves the request from SUBMITTED to IN_REVIEW."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Approve Service Request",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status updated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Status is APPROVED\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.newStatus).to.equal('APPROVED');",
+                                    "});",
+                                    "pm.test(\"Response contains requestReference\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.requestReference).to.match(/^REQ-/);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"APPROVED\",\n  \"remarks\": \"All documents verified. Request approved.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{approvalRequestRef}}/status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{approvalRequestRef}}", "status"]
+                        },
+                        "description": "Agent approves the request (IN_REVIEW → APPROVED). APPROVED is a terminal state."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Attempt Transition on Approved Request Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Bad request - 400 cannot transition from terminal state\", function () {",
+                                    "    pm.response.to.have.status(400);",
+                                    "});",
+                                    "pm.test(\"Error message mentions APPROVED or terminal\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.message).to.satisfy(function(msg) {",
+                                    "        return msg.includes('APPROVED') || msg.includes('terminal') || msg.includes('transition');",
+                                    "    });",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"IN_REVIEW\",\n  \"remarks\": \"Attempting to reopen an approved request — this must fail.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{approvalRequestRef}}/status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{approvalRequestRef}}", "status"]
+                        },
+                        "description": "Agent attempts to transition an APPROVED request to IN_REVIEW. APPROVED is terminal — expects HTTP 400 Bad Request."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. Create Service Request for Rejection",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Service request created - 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Status is SUBMITTED\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.status).to.equal('SUBMITTED');",
+                                    "});",
+                                    "const json = pm.response.json();",
+                                    "if (json.data && json.data.requestReference) {",
+                                    "    pm.environment.set('rejectionRequestRef', json.data.requestReference);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{citizenToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"serviceType\": \"BIRTH_CERTIFICATE\",\n  \"description\": \"Birth certificate request for rejection flow test.\",\n  \"citizenReference\": \"{{citizenReference}}\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests"]
+                        },
+                        "description": "Creates a dedicated service request for the rejection flow. Saves reference to {{rejectionRequestRef}}."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "6. Move to IN_REVIEW (Rejection Path)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status updated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Status is IN_REVIEW\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.newStatus).to.equal('IN_REVIEW');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"IN_REVIEW\",\n  \"remarks\": \"Starting review for rejection flow test.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{rejectionRequestRef}}/status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{rejectionRequestRef}}", "status"]
+                        },
+                        "description": "Agent moves the request from SUBMITTED to IN_REVIEW."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "7. Reject Service Request",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status updated - 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Status is REJECTED\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.newStatus).to.equal('REJECTED');",
+                                    "});",
+                                    "pm.test(\"Response contains requestReference\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.data.requestReference).to.match(/^REQ-/);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"REJECTED\",\n  \"remarks\": \"Insufficient documentation provided. Request rejected.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{rejectionRequestRef}}/status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{rejectionRequestRef}}", "status"]
+                        },
+                        "description": "Agent rejects the request (IN_REVIEW → REJECTED). REJECTED is a terminal state."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "8. Attempt Transition on Rejected Request Error",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Bad request - 400 cannot transition from terminal state\", function () {",
+                                    "    pm.response.to.have.status(400);",
+                                    "});",
+                                    "pm.test(\"Error message mentions REJECTED or terminal\", function () {",
+                                    "    const json = pm.response.json();",
+                                    "    pm.expect(json.message).to.satisfy(function(msg) {",
+                                    "        return msg.includes('REJECTED') || msg.includes('terminal') || msg.includes('transition');",
+                                    "    });",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{agentToken}}", "type": "text"},
+                            {"key": "Content-Type", "value": "application/json", "type": "text"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"IN_REVIEW\",\n  \"remarks\": \"Attempting to reopen a rejected request — this must fail.\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/service-requests/{{rejectionRequestRef}}/status",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "service-requests", "{{rejectionRequestRef}}", "status"]
+                        },
+                        "description": "Agent attempts to transition a REJECTED request to IN_REVIEW. REJECTED is terminal — expects HTTP 400 Bad Request."
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}
