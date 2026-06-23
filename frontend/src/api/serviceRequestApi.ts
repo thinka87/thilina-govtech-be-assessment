@@ -88,7 +88,7 @@ export const serviceRequestApi = {
   },
 
   getServiceTypes: async (): Promise<string[]> => {
-    const res = await axiosClient.get<string[]>(ENDPOINTS.serviceRequests.types);
-    return res.data;
+    const res = await axiosClient.get<ApiResponse<string[]>>(ENDPOINTS.serviceRequests.types);
+    return res.data.data;
   },
 };

@@ -1622,18 +1622,19 @@
                                     "pm.test(\"Service types returned - 200 OK\", function () {",
                                     "    pm.response.to.have.status(200);",
                                     "});",
-                                    "pm.test(\"Response is a non-empty array of strings\", function () {",
+                                    "pm.test(\"Response is wrapped ApiResponse\", function () {",
                                     "    const json = pm.response.json();",
-                                    "    pm.expect(json).to.be.an('array').and.not.empty;",
-                                    "    json.forEach(t => pm.expect(t).to.be.a('string'));",
+                                    "    pm.expect(json).to.have.property('success', true);",
+                                    "    pm.expect(json).to.have.property('data').that.is.an('array').and.not.empty;",
+                                    "    json.data.forEach(t => pm.expect(t).to.be.a('string'));",
                                     "});",
                                     "pm.test(\"Contains expected service types\", function () {",
                                     "    const json = pm.response.json();",
-                                    "    pm.expect(json).to.include('PASSPORT_RENEWAL');",
-                                    "    pm.expect(json).to.include('BIRTH_CERTIFICATE');",
-                                    "    pm.expect(json).to.include('DRIVING_LICENSE');",
-                                    "    pm.expect(json).to.include('BUSINESS_REGISTRATION');",
-                                    "    pm.expect(json).to.include('OTHER');",
+                                    "    pm.expect(json.data).to.include('PASSPORT_RENEWAL');",
+                                    "    pm.expect(json.data).to.include('BIRTH_CERTIFICATE');",
+                                    "    pm.expect(json.data).to.include('DRIVING_LICENSE');",
+                                    "    pm.expect(json.data).to.include('BUSINESS_REGISTRATION');",
+                                    "    pm.expect(json.data).to.include('OTHER');",
                                     "});"
                                 ],
                                 "type": "text/javascript"
@@ -1650,7 +1651,7 @@
                             "host": ["{{baseUrl}}"],
                             "path": ["api", "v1", "service-requests", "types"]
                         },
-                        "description": "Returns the list of allowed service type values. Accessible to any authenticated user (ADMIN, SERVICE_AGENT, CITIZEN). Response is a plain JSON array of strings."
+                        "description": "Returns the list of allowed service type values. Accessible to any authenticated user (ADMIN, SERVICE_AGENT, CITIZEN). Response is wrapped in ApiResponse — the string array is under the `data` field."
                     },
                     "response": []
                 },
@@ -1666,7 +1667,8 @@
                                     "});",
                                     "pm.test(\"Same list returned for citizen\", function () {",
                                     "    const json = pm.response.json();",
-                                    "    pm.expect(json).to.be.an('array').and.not.empty;",
+                                    "    pm.expect(json).to.have.property('success', true);",
+                                    "    pm.expect(json.data).to.be.an('array').and.not.empty;",
                                     "});"
                                 ],
                                 "type": "text/javascript"

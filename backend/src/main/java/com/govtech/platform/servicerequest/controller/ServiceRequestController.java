@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -53,9 +54,23 @@ public class ServiceRequestController {
     @GetMapping("/types")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "List available service types (ALL roles)",
-               description = "Returns the allowed service type values for use in dropdowns.")
-    public ResponseEntity<List<String>> getServiceTypes() {
-        return ResponseEntity.ok(SERVICE_TYPES);
+               description = "Returns the allowed service type values for use in dropdowns. Response is wrapped in ApiResponse — the string array is under the `data` field.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
+                    description = "Service types returned.",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401",
+                    description = "Missing or invalid JWT token.",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403",
+                    description = "Forbidden — authenticated user required.",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<ApiResponse<List<String>>> getServiceTypes() {
+        return ResponseEntity.ok(ApiResponse.success("Service types retrieved successfully", SERVICE_TYPES));
     }
 
     // ── POST /v1/service-requests ─────────────────────────────────────────────
@@ -161,6 +176,7 @@ public class ServiceRequestController {
             @RequestParam(required = false) ServiceRequestStatus status,
             @Parameter(description = "Partial, case-insensitive match on service type, e.g. PASSPORT")
             @RequestParam(required = false) String serviceType,
+            @ParameterObject
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
         return ResponseEntity.ok(
