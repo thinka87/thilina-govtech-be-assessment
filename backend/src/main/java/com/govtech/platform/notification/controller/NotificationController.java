@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -74,6 +75,7 @@ public class NotificationController {
     public ResponseEntity<PageResponse<NotificationResponse>> getMyNotifications(
             @Parameter(description = "Citizen reference matching the authenticated user, e.g. CIT-8F3A91B2")
             @PathVariable String citizenReference,
+            @ParameterObject
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable,
             @AuthenticationPrincipal UserDetails userDetails) {
