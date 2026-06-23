@@ -61,7 +61,7 @@ import org.springframework.context.annotation.Configuration;
                             + "**Default test accounts (seeded on startup):**\n"
                             + "- Admin: `admin@gov.lk` / `Admin@123`\n"
                             + "- Service Agent: `agent@gov.lk` / `Agent@123`\n"
-                            + "- Citizen (with profile): `citizen@gov.lk` / `Citizen@123`",
+                            + "- Citizen (with profile): `citizen@gov.lk` / `Citizen@123` _(changes to `Citizen@12345` after running the Postman collection)_",
                 contact = @Contact(name = "GovTech Platform Team")
         ),
         servers = @Server(url = "/api", description = "Local development server (http://localhost:8080/api)")
