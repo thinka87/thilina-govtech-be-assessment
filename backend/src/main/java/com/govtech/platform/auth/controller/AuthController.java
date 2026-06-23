@@ -67,7 +67,8 @@ public class AuthController {
     @Operation(
             summary     = "Login and receive a JWT token (PUBLIC)",
             description = "Authenticate with username and password. No Authorization header required. "
-                        + "Default accounts: admin@gov.lk/Admin@123, agent@gov.lk/Agent@123, citizen@gov.lk/Citizen@123. "
+                        + "Default accounts: admin@gov.lk/Admin@123, agent@gov.lk/Agent@123, citizen@gov.lk/Citizen@123 "
+                        + "(note: running the Postman collection changes the citizen password to Citizen@12345). "
                         + "If mustChangePassword is true, the user must change their temporary password before using other features."
     )
     @ApiResponses({
