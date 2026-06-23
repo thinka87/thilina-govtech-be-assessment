@@ -17,8 +17,8 @@ import org.springframework.context.annotation.Configuration;
  *   <li>Start the application.</li>
  *   <li>Navigate to {@code http://localhost:8080/api/swagger-ui/index.html}</li>
  *   <li>Use {@code POST /api/v1/auth/login} to obtain a JWT token.</li>
- *   <li>Click <strong>Authorize</strong> (lock icon, top-right) and enter:
- *       {@code Bearer <your-token>} (include the word "Bearer" and a space).</li>
+ *   <li>Click <strong>Authorize</strong> (lock icon, top-right) and paste your JWT token
+ *       (Swagger UI adds the "Bearer " prefix automatically).</li>
  *   <li>All subsequent Swagger requests will include the Authorization header.</li>
  * </ol>
  *
@@ -55,7 +55,7 @@ import org.springframework.context.annotation.Configuration;
                             + "**How to authenticate:** "
                             + "Call `POST /v1/auth/login` with valid credentials to receive a JWT token. "
                             + "Click the **Authorize** button (🔓) at the top of this page, "
-                            + "enter `Bearer <your-token>`, and click Authorize. "
+                            + "paste your JWT token (Swagger UI adds the `Bearer ` prefix automatically), and click Authorize. "
                             + "All subsequent requests will include the token automatically."
                             + "\n\n"
                             + "**Default test accounts (seeded on startup):**\n"
@@ -73,7 +73,7 @@ import org.springframework.context.annotation.Configuration;
         bearerFormat = "JWT",
         in           = SecuritySchemeIn.HEADER,
         description  = "JWT Bearer token. Obtain from POST /v1/auth/login. "
-                     + "Enter the full value including the word 'Bearer': Bearer <token>"
+                     + "Paste the raw token here — Swagger UI adds the 'Bearer ' prefix automatically."
 )
 public class OpenApiConfig {
     // Configuration is fully annotation-driven — no bean methods required.
